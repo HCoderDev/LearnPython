@@ -1,3 +1,5 @@
+from zipfile import ZipFile
+
 from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
 from wtforms import FileField, SubmitField
@@ -26,6 +28,20 @@ def home():
 
         return render_template('files.html',files=files,duration=str(end-start))
     return render_template('index.html')
+
+
+@app.route('/zip', methods=['GET'])
+def ziplocal():
+    return render_template('indexzip.html')
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    file = request.files['zipFile']
+    temp_zip_filename = os.path.join(os.path.abspath(os.path.dirname(__file__)), app.config['UPLOAD_FOLDER'],
+                           secure_filename(file.filename))
+    file.save(temp_zip_filename)  # Then save the file
+
+    return {'data':'upload successful'}
 
 if __name__ == '__main__':
     app.run(debug=True)

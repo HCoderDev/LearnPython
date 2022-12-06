@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zip Folder using Javascript</title>
+</head>
+<body>
+<form id="zipUpload">
+  <input class="upload" type="file" webkitdirectory>
+  <button type="submit">
+    Upload your ZIP
+  </button>
+</form>
+<ul id="zipData"></ul>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js" integrity="sha512-y3o0Z5TJF1UsKjs/jS2CDkeHN538bWsftxO9nctODL5W40nyXIbs0Pgyu7//icrQY9m6475gLaVr39i/uh/nLA==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous"></script>
+
+<script>
+  let zip = new JSZip(),
+  // Used to show the file(s) selected
+  fileNames = document.getElementById('zipData');
+
+Array.from(document.getElementsByClassName('upload')).forEach(u => {
+  u.addEventListener('change', e => {
+    let files = e.target.files;
+
+    for (let i = 0; i < files.length; i++) {
+      let file = files[i],
+        name = file.webkitRelativePath || file.name,
+        fileName = document.createElement('li');
+
+      // Append the name to the list
+      fileName.appendChild(document.createTextNode(name));
+      fileNames.appendChild(fileName);
+
+      // Add the file to the ZIP file
+      zip.file(name, file, {binary: true});
+    }
+  });
+});
+
+document.getElementById('zipUpload').addEventListener('submit', e => {
+  e.preventDefault();
+
+  // ZIP up all the files and get a blob
+  zip.generateAsync({type: "blob"}).then(blob => {
+    let ajax = new XMLHttpRequest(),
+      formData = new FormData();
+
+    // Add the blob to the data to be sent to the server
+    formData.append('zipFile', blob, Date.now() + '.zip');
+
+    ajax.upload.addEventListener('progress', function(e) {
+      let progress = Math.floor(e.loaded / e.total * 100);
+      console.log('Uploading: ' + progress + '%');
+    }, false);
+
+    ajax.addEventListener('load', function(e) {
+      if (ajax.readyState === 4 && ajax.status === 200) {
+        console.log('done.');
+      }
+    }, false);
+
+    ajax.open('POST', 'http://127.0.0.1:5000/upload', true);
+
+    // We can't actually upload from here, so just download it instead
+    ajax.send(formData);
+    //saveAs(blob, Date.now() + '.zip');
+  });
+});
+
+
+</script>
+
+
+
+
+</body>
+</html>
