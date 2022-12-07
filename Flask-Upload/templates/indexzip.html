@@ -11,63 +11,120 @@
     Upload your ZIP
   </button>
 </form>
-<ul id="zipData"></ul>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js" integrity="sha512-y3o0Z5TJF1UsKjs/jS2CDkeHN538bWsftxO9nctODL5W40nyXIbs0Pgyu7//icrQY9m6475gLaVr39i/uh/nLA==" crossorigin="anonymous"></script>
+<p id="status"></p>
+<ul id="zipData" style="display:none;"></ul>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous"></script>
 
-<script>
-  let zip = new JSZip(),
+<script type="text/javascript">
+class ZipCollection{
+    constructor(){
+        this.zipfiles = [];
+    }
+
+    newZip(){
+        let nzip = new JSZip();
+        this.zipfiles.push(nzip);
+        return nzip;
+    }
+
+    get allZip(){
+        return this.zipfiles;
+    }
+
+}
+  let zipList = new ZipCollection(),
   // Used to show the file(s) selected
   fileNames = document.getElementById('zipData');
-
+  statusElement = document.getElementById('status')
+  let totalfiles = 0;
+  let files = null;
 Array.from(document.getElementsByClassName('upload')).forEach(u => {
-  u.addEventListener('change', e => {
-    let files = e.target.files;
-
-    for (let i = 0; i < files.length; i++) {
-      let file = files[i],
-        name = file.webkitRelativePath || file.name,
-        fileName = document.createElement('li');
-
-      // Append the name to the list
-      fileName.appendChild(document.createTextNode(name));
-      fileNames.appendChild(fileName);
-
-      // Add the file to the ZIP file
-      zip.file(name, file, {binary: true});
-    }
-  });
+  u.addEventListener('change', e => processFiles(e.target.files));
 });
 
 document.getElementById('zipUpload').addEventListener('submit', e => {
   e.preventDefault();
 
-  // ZIP up all the files and get a blob
-  zip.generateAsync({type: "blob"}).then(blob => {
-    let ajax = new XMLHttpRequest(),
-      formData = new FormData();
+  let finalZipList = zipList.allZip;
 
-    // Add the blob to the data to be sent to the server
-    formData.append('zipFile', blob, Date.now() + '.zip');
+  while(finalZipList.length > 0){
+       zip = finalZipList[0];
+       // ZIP up all the files and get a blob
+       zip.generateAsync({type: "blob"}).then(blob => {
+        let ajax = new XMLHttpRequest(),
+        formData = new FormData();
 
-    ajax.upload.addEventListener('progress', function(e) {
-      let progress = Math.floor(e.loaded / e.total * 100);
-      console.log('Uploading: ' + progress + '%');
-    }, false);
+        // Add the blob to the data to be sent to the server
+        formData.append('zipFile', blob, Date.now() + '.zip');
 
-    ajax.addEventListener('load', function(e) {
-      if (ajax.readyState === 4 && ajax.status === 200) {
-        console.log('done.');
-      }
-    }, false);
+        ajax.upload.addEventListener('progress', function(e) {
+        let progress = Math.floor(e.loaded / e.total * 100);
+        console.log('Uploading: ' + progress + '%');
+        }, false);
 
-    ajax.open('POST', 'http://127.0.0.1:5000/upload', true);
+        ajax.addEventListener('load', function(e) {
+            if (ajax.readyState === 4 && ajax.status === 200) {
+                console.log('done.');
+            }
+            }, false);
 
-    // We can't actually upload from here, so just download it instead
-    ajax.send(formData);
-    //saveAs(blob, Date.now() + '.zip');
-  });
+        ajax.open('POST', 'http://127.0.0.1:5000/upload', true);
+
+        // We can't actually upload from here, so just download it instead
+        ajax.send(formData);
+        //saveAs(blob, Date.now() + '.zip');
+        });
+
+
+       finalZipList = finalZipList.slice(1);
+  }
+
+
+
+
+
 });
+async function processFiles(filesInput){
+    files = filesInput;
+    totalfiles =files.length
+
+     await asyncFor(totalfiles, (i) => {
+    		statusElement.innerHTML = i;
+    });
+
+     statusElement.innerHTML="Ready to create Zip";
+}
+async function asyncFor(iters, callback) {
+        let allowedSize = 524288000;
+        size = 0
+        zip = zipList.newZip();
+		for (let i = 0; i < iters; i++) {
+    		const promise = new Promise((resolve, _reject) => {
+        		setTimeout(() => {
+        		    let file = files[i],
+                    name = file.webkitRelativePath || file.name,
+                    fileName = document.createElement('li');
+
+                    if(size + file.size > allowedSize){
+                        zip = zipList.newZip();
+                        size =0;
+                    }
+
+                    size = size + file.size;
+                     // Append the name to the list
+                    fileName.appendChild(document.createTextNode(name));
+                    fileNames.appendChild(fileName);
+                    zip.file(name, file, {binary: true});
+
+            		callback((i+1)+" files processed of "+totalfiles);
+                    resolve();
+            }, 0);
+        });
+        await promise;
+    }
+}
+
 
 
 </script>
