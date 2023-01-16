@@ -15,7 +15,7 @@ def calculate():
     total_payment.set('{:.2f}'.format(total_payment_value))
 
     label = [f'Interest({"{:.2f}".format(total_interest_value)})',f'Principal ({input_principal})']
-    values = [total_interest_value,total_payment_value]
+    values = [total_interest_value,input_principal]
 
     fig = Figure()
     ax = fig.add_subplot(111)
